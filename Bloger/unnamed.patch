@@ -1,0 +1,691 @@
+Index: app/src/main/res/menu/basliklar_menu.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/menu/basliklar_menu.xml	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/res/menu/basliklar_menu.xml	(revision )
+@@ -4,4 +4,7 @@
+     <item android:title="@string/konu_ekle" android:id="@+id/konuEkle"/>
+     <item android:title="@string/konu_sil" android:id="@+id/konuSil"/>
+ 
++    <item android:title="@string/kullanici_ekle" android:id="@+id/kullaniciEkle"/>
++    <item android:title="@string/kullanici_sil" android:id="@+id/kullaniciSil"/>
++
+ </menu>
+\ No newline at end of file
+Index: app/src/main/AndroidManifest.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/AndroidManifest.xml	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/AndroidManifest.xml	(revision )
+@@ -18,11 +18,17 @@
+                 <category android:name="android.intent.category.LAUNCHER" />
+             </intent-filter>
+         </activity>
+-        <activity android:name=".BasliklarActivity"
++        <activity
++            android:name=".BasliklarActivity"
+             android:label="@string/app_baslik"
+-            android:theme="@style/ChatTheme"/>
++            android:theme="@style/ChatTheme" />
+-        <activity android:name=".ChatActivity"
++        <activity
++            android:name=".ChatActivity"
+-            android:theme="@style/ChatTheme"/>
++            android:theme="@style/ChatTheme" />
++
++        <activity android:name=".UserAddActivity"
++            android:theme="@style/ChatTheme"
++            android:label="@string/app_user_add"/>
+     </application>
+ 
+ </manifest>
+\ No newline at end of file
+Index: app/src/main/java/com/recep/bloger/BasliklarActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/BasliklarActivity.java	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/java/com/recep/bloger/BasliklarActivity.java	(revision )
+@@ -12,6 +12,7 @@
+ import android.widget.AdapterView;
+ import android.widget.ListView;
+ import android.widget.TextView;
++import android.widget.Toast;
+ 
+ import com.android.volley.Request;
+ import com.android.volley.RequestQueue;
+@@ -21,6 +22,7 @@
+ import com.android.volley.toolbox.Volley;
+ import com.recep.bloger.adaptor.OzelAdapter;
+ import com.recep.bloger.converter.GsonConverter;
++import com.recep.bloger.entity.User;
+ import com.recep.bloger.model.BasliklarReturn;
+ import com.recep.bloger.model.RolEnum;
+ 
+@@ -31,7 +33,8 @@
+ 
+     private GsonConverter gsonConverter = new GsonConverter();
+     private String URL = "http://192.168.1.60:8080/BlogWebServis/rest/servis/getbasliklar/";
+-    private static String kull=null,pass=null,roll=null;
++    private String URL2 = "http://192.168.1.60:8080/BlogWebServis/rest/servis/getbasliklar/";
++    private static String response=null;
+     private ListView listemiz;
+ 
+     @Override
+@@ -40,12 +43,8 @@
+         setContentView(R.layout.activity_basliklar);
+ 
+         Intent intent = getIntent();
+-        kull =intent.getStringExtra("user");
+-        pass =intent.getStringExtra("pass");
+-        roll =intent.getStringExtra("roll");
+-
++        response =intent.getStringExtra("user");
+         listemiz = (ListView) findViewById(R.id.liste);
+-
+         getBasliklar(URL);
+ 
+     }
+@@ -56,14 +55,22 @@
+         MenuInflater menuInflater = getMenuInflater();
+         menuInflater.inflate(R.menu.basliklar_menu, menu);
+ 
+-        if(!RolEnum.ADMIN.getId().equals(roll)){
++        User user = gsonConverter.getStringUser(response);
+ 
++        if(!user.getRol().isRol_konuIslemleri()){
++
+             MenuItem item = menu.findItem(R.id.konuEkle);
+             item.setVisible(false);
+             MenuItem item2 = menu.findItem(R.id.konuSil);
+             item2.setVisible(false);
+         }
+ 
++        if(!user.getRol().isRol_kullaniciIslemleri()) {
++            MenuItem item3 = menu.findItem(R.id.kullaniciEkle);
++            item3.setVisible(false);
++            MenuItem item4 = menu.findItem(R.id.kullaniciSil);
++            item4.setVisible(false);
++        }
+ 
+         return true;
+     }
+@@ -74,11 +81,16 @@
+ 
+         switch (item.getItemId()){
+             case R.id.konuEkle:
+-
+                 break;
+             case R.id.konuSil:
+-
+                 break;
++            case R.id.kullaniciEkle:
++                Intent intent = new Intent(BasliklarActivity.this,UserAddActivity.class);
++                intent.putExtra("user",response);
++                startActivity(intent);
++                break;
++            case R.id.kullaniciSil:
++                break;
+         }
+ 
+         return true;
+@@ -117,6 +129,29 @@
+ 
+                             }
+                         });
++
++                    }
++                },
++                new Response.ErrorListener()
++                {
++                    @Override
++                    public void onErrorResponse(VolleyError error) {
++                        // error
++                        Log.d("Error.Response", "response");
++                    }
++                }
++        );
++        queue.add(postRequest);
++    }
++
++    private void getKullaniciEkle(String URL){
++
++        RequestQueue queue = Volley.newRequestQueue(this);
++        StringRequest postRequest = new StringRequest(Request.Method.GET, URL,
++                new Response.Listener<String>()
++                {
++                    @Override
++                    public void onResponse(String response) {
+ 
+                     }
+                 },
+Index: app/src/main/java/com/recep/bloger/entity/Rol.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/entity/Rol.java	(revision )
++++ app/src/main/java/com/recep/bloger/entity/Rol.java	(revision )
+@@ -0,0 +1,35 @@
++package com.recep.bloger.entity;
++
++public class Rol {
++
++	private int id;
++
++	private boolean rol_kullaniciIslemleri;
++
++	private boolean rol_konuIslemleri;
++
++	public int getId() {
++		return id;
++	}
++
++	public void setId(int id) {
++		this.id = id;
++	}
++
++	public boolean isRol_kullaniciIslemleri() {
++		return rol_kullaniciIslemleri;
++	}
++
++	public void setRol_kullaniciIslemleri(boolean rol_kullaniciIslemleri) {
++		this.rol_kullaniciIslemleri = rol_kullaniciIslemleri;
++	}
++
++	public boolean isRol_konuIslemleri() {
++		return rol_konuIslemleri;
++	}
++
++	public void setRol_konuIslemleri(boolean rol_konuIslemleri) {
++		this.rol_konuIslemleri = rol_konuIslemleri;
++	}
++
++}
+Index: app/src/main/res/layout/activity_user_add.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/activity_user_add.xml	(revision )
++++ app/src/main/res/layout/activity_user_add.xml	(revision )
+@@ -0,0 +1,65 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    xmlns:tools="http://schemas.android.com/tools"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    android:orientation="vertical"
++    android:padding="@dimen/anaSayfa"
++    tools:context="com.recep.bloger.UserAddActivity">
++
++    <LinearLayout
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="vertical">
++
++        <EditText
++            android:id="@+id/etKull"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:hint="@string/kullan_c_ad" />
++
++        <EditText
++            android:id="@+id/etPass1"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:hint="@string/parola"
++            android:inputType="textPassword"
++            android:layout_marginTop="5dp" />
++
++        <EditText
++            android:id="@+id/etPass2"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:hint="@string/parola_tekrar"
++            android:inputType="textPassword"
++            android:layout_marginTop="5dp" />
++
++        <Switch
++            android:id="@+id/switch1"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="10dp"
++            android:text="@string/kullan_c_lemleri"
++            tools:targetApi="ice_cream_sandwich" />
++
++        <Switch
++            android:id="@+id/switch2"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="10dp"
++            android:text="@string/konu_lemleri"
++            tools:targetApi="ice_cream_sandwich" />
++
++        <Button
++            android:id="@+id/btnKaydet"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:onClick="onClickKaydet"
++            android:layout_marginTop="10dp"
++            android:text="@string/kaydet" />
++
++
++    </LinearLayout>
++
++</LinearLayout>
+Index: app/src/main/java/com/recep/bloger/converter/GsonConverter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/converter/GsonConverter.java	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/java/com/recep/bloger/converter/GsonConverter.java	(revision )
+@@ -2,8 +2,8 @@
+ 
+ import com.google.gson.Gson;
+ import com.google.gson.reflect.TypeToken;
++import com.recep.bloger.entity.User;
+ import com.recep.bloger.model.BasliklarReturn;
+-import com.recep.bloger.model.UserReturn;
+ 
+ import java.lang.reflect.Type;
+ import java.util.ArrayList;
+@@ -19,12 +19,12 @@
+         return json;
+     }
+ 
+-    public UserReturn getStringUser(String json){
++    public User getStringUser(String json){
+ 
+         Gson gson = new Gson();
+-        UserReturn userReturn = gson.fromJson(json,UserReturn.class);
++        User user = gson.fromJson(json,User.class);
+ 
+-        return userReturn;
++        return user;
+     }
+ 
+     public List<BasliklarReturn> getStringBasliklarReturnList(String json){
+Index: app/src/main/java/com/recep/bloger/entity/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/entity/User.java	(revision )
++++ app/src/main/java/com/recep/bloger/entity/User.java	(revision )
+@@ -0,0 +1,49 @@
++package com.recep.bloger.entity;
++
++public class User {
++
++	private int id;
++
++	private String username;
++
++	private String password;
++
++	private Rol rol;
++
++	public User(){
++		rol = new Rol();
++	}
++
++	public int getId() {
++		return id;
++	}
++
++	public void setId(int id) {
++		this.id = id;
++	}
++
++	public String getUsername() {
++		return username;
++	}
++
++	public void setUsername(String username) {
++		this.username = username;
++	}
++
++	public String getPassword() {
++		return password;
++	}
++
++	public void setPassword(String password) {
++		this.password = password;
++	}
++
++	public Rol getRol() {
++		return rol;
++	}
++
++	public void setRol(Rol rol) {
++		this.rol = rol;
++	}
++
++}
+Index: app/src/main/java/com/recep/bloger/model/UserReturn.java
+===================================================================
+--- app/src/main/java/com/recep/bloger/model/UserReturn.java	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/java/com/recep/bloger/model/UserReturn.java	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
+@@ -1,33 +0,0 @@
+-package com.recep.bloger.model;
+-
+-public class UserReturn {
+-
+-	private String kullaniciAdi;
+-	private String parola;
+-	private String rol;
+-
+-	public String getKullaniciAdi() {
+-		return kullaniciAdi;
+-	}
+-
+-	public void setKullaniciAdi(String kullaniciAdi) {
+-		this.kullaniciAdi = kullaniciAdi;
+-	}
+-
+-	public String getParola() {
+-		return parola;
+-	}
+-
+-	public void setParola(String parola) {
+-		this.parola = parola;
+-	}
+-
+-	public String getRol() {
+-		return rol;
+-	}
+-
+-	public void setRol(String rol) {
+-		this.rol = rol;
+-	}
+-
+-}
+Index: app/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/build.gradle	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/build.gradle	(revision )
+@@ -30,6 +30,6 @@
+     compile 'com.google.code.gson:gson:2.8.0'
+     compile 'com.android.support:appcompat-v7:25.3.1'
+     compile 'com.android.support.constraint:constraint-layout:1.0.0-beta4'
+-    testCompile 'junit:junit:4.12'
+     compile 'com.android.support:recyclerview-v7:25.3.1'
++    testCompile 'junit:junit:4.12'
+ }
+Index: app/src/main/java/com/recep/bloger/MainActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/MainActivity.java	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/java/com/recep/bloger/MainActivity.java	(revision )
+@@ -17,8 +17,8 @@
+ import com.easyandroidanimations.library.Animation;
+ import com.easyandroidanimations.library.BounceAnimation;
+ import com.recep.bloger.converter.GsonConverter;
++import com.recep.bloger.entity.User;
+ import com.recep.bloger.model.UserModel;
+-import com.recep.bloger.model.UserReturn;
+ 
+ import java.util.HashMap;
+ import java.util.Map;
+@@ -27,12 +27,19 @@
+ 
+ 
+     private String URL = "http://192.168.1.60:8080/BlogWebServis/rest/servis/post/";
++    private String URL2 = "http://192.168.1.60:8080/BlogWebServis/rest/servis/postDao/";
+     private EditText etkullanici;
+     private EditText etParola;
+     private UserModel userModel;
+     private GsonConverter gsonConverter = new GsonConverter();
+ 
+     @Override
++    protected void onStart() {
++        super.onStart();
++        postDao(URL2);
++    }
++
++    @Override
+     protected void onCreate(Bundle savedInstanceState) {
+         super.onCreate(savedInstanceState);
+         setContentView(R.layout.activity_main);
+@@ -46,7 +53,7 @@
+         switch (view.getId()){
+             case R.id.btnGiris:
+                 userModel = new UserModel();
+-                if(!etkullanici.getText().toString().equals("") || !etParola.getText().toString().equals("")) {
++                if(!etkullanici.getText().toString().equals("") && !etParola.getText().toString().equals("")) {
+ 
+                     userModel.setKullaniciAdi(etkullanici.getText().toString());
+                     userModel.setParola(etParola.getText().toString());
+@@ -82,15 +89,12 @@
+                         //Log.d("RECEP", response);
+                         if(!response.equals("YOK")){
+                             Intent intent = new Intent(MainActivity.this,BasliklarActivity.class);
+-                            UserReturn userReturn = gsonConverter.getStringUser(response);
++                            User user = gsonConverter.getStringUser(response);
+ 
+-                            String kull = userReturn.getKullaniciAdi();
+-                            String pass = userReturn.getParola();
+-                            String roll = userReturn.getRol();
++                            String kull = user.getUsername();
+ 
+-                            intent.putExtra("user",kull);
+-                            intent.putExtra("pass",pass);
+-                            intent.putExtra("roll",roll);
++                            intent.putExtra("user",response);
++
+                             Toast.makeText(MainActivity.this, "Hoşgeldiniz " + kull, Toast.LENGTH_SHORT).show();
+                             startActivity(intent);
+ 
+@@ -106,6 +110,7 @@
+                     public void onErrorResponse(VolleyError error) {
+                         // error
+                         Log.d("Error.Response", "response");
++                        Toast.makeText(MainActivity.this, "İnternet bağlantınızı kontrol ediniz.", Toast.LENGTH_LONG).show();
+                     }
+                 }
+         ) {
+@@ -118,6 +123,27 @@
+                 return params;
+             }
+         };
++        queue.add(postRequest);
++    }
++
++    private void postDao(String URL){
++
++        RequestQueue queue = Volley.newRequestQueue(this);
++        StringRequest postRequest = new StringRequest(Request.Method.POST, URL,
++                new Response.Listener<String>()
++                {
++                    @Override
++                    public void onResponse(String response) {
++
++                    }
++                },
++                new Response.ErrorListener()
++                {
++                    @Override
++                    public void onErrorResponse(VolleyError error) {
++                    }
++                }
++        );
+         queue.add(postRequest);
+     }
+ }
+Index: app/src/main/res/values/strings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/strings.xml	(revision 57e726c2d3aa475ede4556ea09cca0274f5b8842)
++++ app/src/main/res/values/strings.xml	(revision )
+@@ -8,4 +8,11 @@
+     <string name="app_baslik">Konular</string>
+     <string name="konu_ekle">Konu Ekle</string>
+     <string name="konu_sil">Konu Sil</string>
++    <string name="kullanici_ekle">Kullanıcı Ekle</string>
++    <string name="kullanici_sil">Kullanıcı Sil</string>
++    <string name="kullan_c_lemleri">Kullanıcı İşlemleri</string>
++    <string name="konu_lemleri">Konu İşlemleri</string>
++    <string name="kaydet">Kaydet</string>
++    <string name="parola_tekrar">Paralo Tekrar</string>
++    <string name="app_user_add">Kullanıcı Kaydet</string>
+ </resources>
+Index: app/src/main/java/com/recep/bloger/UserAddActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/recep/bloger/UserAddActivity.java	(revision )
++++ app/src/main/java/com/recep/bloger/UserAddActivity.java	(revision )
+@@ -0,0 +1,137 @@
++package com.recep.bloger;
++
++import android.content.Intent;
++import android.support.v7.app.AppCompatActivity;
++import android.os.Bundle;
++import android.util.Log;
++import android.view.View;
++import android.widget.Button;
++import android.widget.EditText;
++import android.widget.Switch;
++import android.widget.Toast;
++
++import com.android.volley.Request;
++import com.android.volley.RequestQueue;
++import com.android.volley.Response;
++import com.android.volley.VolleyError;
++import com.android.volley.toolbox.StringRequest;
++import com.android.volley.toolbox.Volley;
++import com.easyandroidanimations.library.Animation;
++import com.easyandroidanimations.library.BounceAnimation;
++import com.recep.bloger.converter.GsonConverter;
++import com.recep.bloger.entity.User;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class UserAddActivity extends AppCompatActivity {
++
++    private GsonConverter gsonConverter = new GsonConverter();
++    private String URL = "http://192.168.1.60:8080/BlogWebServis/rest/servis/postKullAdd/";
++    private EditText etKullAd,etPass1,etPass2;
++    private Switch aSwitch1,aSwitch2;
++
++    @Override
++    protected void onStop() {
++        super.onStop();
++    }
++
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        setContentView(R.layout.activity_user_add);
++
++        etKullAd = (EditText) findViewById(R.id.etKull);
++        etPass1 = (EditText) findViewById(R.id.etPass1);
++        etPass2 = (EditText) findViewById(R.id.etPass2);
++        aSwitch1 = (Switch) findViewById(R.id.switch1);
++        aSwitch2 = (Switch) findViewById(R.id.switch2);
++
++    }
++
++    public void onClickKaydet(View view) {
++
++        switch (view.getId()){
++            case R.id.btnKaydet:
++
++                if(!etKullAd.getText().toString().equals("") && !etPass1.getText().toString().equals("") && !etPass2.getText().toString().equals("")){
++
++                    if(etPass1.getText().toString().equals(etPass2.getText().toString())){
++
++                        User user = new User();
++                        user.setUsername(etKullAd.getText().toString());
++                        user.setPassword(etPass1.getText().toString());
++                        user.getRol().setRol_kullaniciIslemleri(aSwitch1.isChecked());
++                        user.getRol().setRol_konuIslemleri(aSwitch2.isChecked());
++                        String value = gsonConverter.getJson(user);
++                        postKullAdd(URL,value);
++
++
++                    } else {
++                        new BounceAnimation(etPass1).setNumOfBounces(2).setDuration(Animation.DURATION_SHORT).animate();
++                        new BounceAnimation(etPass2).setNumOfBounces(2).setDuration(Animation.DURATION_SHORT).animate();
++                        Toast.makeText(this, "Girdiğiniz parolalar eşleşmiyor.", Toast.LENGTH_SHORT).show();
++                    }
++
++                } else {
++
++                    if (etKullAd.getText().toString().equals("")) {
++                        new BounceAnimation(etKullAd).setNumOfBounces(2).setDuration(Animation.DURATION_SHORT).animate();
++                        Toast.makeText(this, "Kullanıcı adı bölümü boş bırakılamaz.", Toast.LENGTH_SHORT).show();
++                    }
++                    if (etPass1.getText().toString().equals("") || etPass2.getText().toString().equals("")){
++                        new BounceAnimation(etPass1).setNumOfBounces(2).setDuration(Animation.DURATION_SHORT).animate();
++                        new BounceAnimation(etPass2).setNumOfBounces(2).setDuration(Animation.DURATION_SHORT).animate();
++                        Toast.makeText(this, "Parola bölümü boş bırakılamaz.", Toast.LENGTH_SHORT).show();
++                    }
++                }
++                break;
++        }
++
++    }
++
++    private void postKullAdd(String URL, final String value) {
++
++        RequestQueue queue = Volley.newRequestQueue(this);
++        StringRequest postRequest = new StringRequest(Request.Method.POST, URL,
++                new Response.Listener<String>()
++                {
++                    @Override
++                    public void onResponse(String response) {
++                        User user = null;
++                        if(!response.equals("YOK")){
++                        user = gsonConverter.getStringUser(response);
++                        }
++                        if(user!=null){
++                            Toast.makeText(UserAddActivity.this, "Kayıt Başarılı", Toast.LENGTH_SHORT).show();
++                            UserAddActivity.this.finish();
++                        } else {
++                            Toast.makeText(UserAddActivity.this, "Girdiğiniz kullanıcı adı kullanılmaktadır." +
++                                    " Farklı bir kullanıcı adı girin.", Toast.LENGTH_SHORT).show();
++                        }
++
++                    }
++                },
++                new Response.ErrorListener()
++                {
++                    @Override
++                    public void onErrorResponse(VolleyError error) {
++                        // error
++                        Log.d("Error.Response", "response"  + error.getLocalizedMessage());
++                        Toast.makeText(UserAddActivity.this, "İnternet bağlantınızı kontrol ediniz.", Toast.LENGTH_LONG).show();
++                    }
++                }
++        ) {
++            @Override
++            protected Map<String, String> getParams()
++            {
++                Map<String, String>  params = new HashMap<String, String>();
++                params.put("json", value);
++
++                return params;
++            }
++        };
++        queue.add(postRequest);
++
++    }
++}
